@@ -238,6 +238,7 @@ function addTag() {
   border-radius: 8px;
   font-size: 13px;
   background: #f5f5f7;
+  color: #333;
   transition: all 0.2s;
 }
 
@@ -432,6 +433,7 @@ function addTag() {
   resize: vertical;
   min-height: 100px;
   background: white;
+  color: #333;
   transition: all 0.2s;
   box-sizing: border-box;
 }
@@ -502,6 +504,7 @@ function addTag() {
   border-radius: 6px;
   font-size: 12px;
   background: white;
+  color: #333;
   transition: all 0.2s;
 }
 

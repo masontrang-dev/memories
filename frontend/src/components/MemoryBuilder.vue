@@ -387,6 +387,8 @@ async function generatePrompt() {
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 12px;
+  background: white;
+  color: #333;
   transition: border-color 0.2s;
 }
 
@@ -613,6 +615,7 @@ async function generatePrompt() {
   min-height: 200px;
   transition: all 0.2s;
   background: white;
+  color: #333;
   box-sizing: border-box;
 }
 
@@ -753,6 +756,8 @@ async function generatePrompt() {
   font-family: inherit;
   resize: vertical;
   min-height: 100px;
+  background: white;
+  color: #333;
   transition: border-color 0.2s;
 }
 
