@@ -5,16 +5,26 @@ import MemoryList from "./components/MemoryList.vue";
 import AppHeader from "./components/AppHeader.vue";
 import ToastContainer from "./components/ToastContainer.vue";
 import { useToast } from "./composables/useToast";
+import { useUserPreferences } from "./composables/useUserPreferences";
+import { useTheme } from "./composables/useTheme";
+import { useThemeClassification } from "./composables/useThemeClassification";
+import { themes } from "./config/themeConfig";
 
 const API_URL = "http://localhost:3001";
-const selectedModel = ref("llama3");
+const selectedModel = ref("llama3.1:8b");
 const availableModels = [
   { value: "phi3", label: "Phi3 (Fast)" },
   { value: "mistral", label: "Mistral (Balanced)" },
-  { value: "llama3", label: "Llama3 (Best Quality)" },
+  { value: "llama3.1:8b", label: "Llama3.1 (Best Quality)" },
 ];
 
 const { success, error, info } = useToast();
+const { preferences, loadPreferences } = useUserPreferences();
+const { currentTheme, getInitialPrompt, getFollowUpPrompt, getTags } =
+  useTheme();
+const { classifyMemoryTheme } = useThemeClassification();
+
+const detectedMemoryTheme = ref(null);
 
 const currentMemory = ref("");
 const memoryHistory = ref([]);
@@ -33,6 +43,7 @@ const isSearching = ref(false);
 const memoryCount = computed(() => allMemories.value.length);
 
 onMounted(() => {
+  loadPreferences();
   loadMemories();
 });
 
@@ -160,6 +171,14 @@ async function finishMemory() {
       generatedTags.value = tags;
     }
 
+    // Classify theme based on memory content with context hints
+    const { theme: classified, context } = await classifyMemoryTheme(
+      summarizedMemory.value,
+      selectedModel.value
+    );
+    detectedMemoryTheme.value = classified || preferences.value.selectedTheme;
+    // Context is extracted but not stored yet (can be used for future features)
+
     isBuilding.value = false;
     isReviewing.value = true;
   } catch (err) {
@@ -183,6 +202,7 @@ async function confirmMemory() {
         text: summarizedMemory.value,
         tags: generatedTags.value,
         model: selectedModel.value,
+        theme: detectedMemoryTheme.value,
       }),
     });
 
@@ -219,7 +239,11 @@ function cancelMemory() {
   currentMemory.value = "";
   memoryHistory.value = [];
   llmResponse.value = "";
+  summarizedMemory.value = "";
+  generatedTags.value = [];
+  detectedMemoryTheme.value = null;
   isBuilding.value = false;
+  isReviewing.value = false;
 }
 
 async function searchMemories() {
@@ -362,6 +386,8 @@ async function generateMemoryPrompt() {
         :generated-tags="generatedTags"
         :generated-prompt="generatedPrompt"
         :is-loading="isLoading"
+        :detected-theme="detectedMemoryTheme"
+        :available-themes="themes"
         @start="startMemory"
         @add-detail="addDetail"
         @finish="finishMemory"
@@ -369,6 +395,7 @@ async function generateMemoryPrompt() {
         @edit="editMemory"
         @cancel="cancelMemory"
         @update:generated-tags="generatedTags = $event"
+        @update:detected-theme="detectedMemoryTheme = $event"
         @generate-prompt="generateMemoryPrompt"
       />
 
@@ -392,7 +419,8 @@ async function generateMemoryPrompt() {
 .app {
   min-height: 100vh;
   background: #f5f5f7;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+    sans-serif;
   display: flex;
   flex-direction: column;
 }

@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from "vue";
+import ConfirmationModal from "./ConfirmationModal.vue";
 
 const props = defineProps({
   isBuilding: Boolean,
@@ -11,6 +12,8 @@ const props = defineProps({
   generatedTags: Array,
   generatedPrompt: String,
   isLoading: Boolean,
+  detectedTheme: String,
+  availableThemes: Object,
 });
 
 const emit = defineEmits([
@@ -21,6 +24,7 @@ const emit = defineEmits([
   "edit",
   "cancel",
   "update:generatedTags",
+  "update:detectedTheme",
   "generate-prompt",
 ]);
 
@@ -29,6 +33,20 @@ const detailInput = ref("");
 const usePrompt = ref(false);
 const isGeneratingPrompt = ref(false);
 const promptSelected = ref(false);
+const showCancelConfirm = ref(false);
+
+function handleCancelClick() {
+  showCancelConfirm.value = true;
+}
+
+function confirmCancel() {
+  showCancelConfirm.value = false;
+  emit("cancel");
+}
+
+function rejectCancel() {
+  showCancelConfirm.value = false;
+}
 
 function handleStart() {
   const text = initialInput.value.trim();
@@ -129,6 +147,27 @@ async function generatePrompt() {
           </div>
         </div>
 
+        <!-- Theme Detection Section -->
+        <div v-if="detectedTheme && availableThemes" class="theme-section">
+          <div class="theme-label">Memory Type</div>
+          <select
+            :value="detectedTheme"
+            @change="$emit('update:detectedTheme', $event.target.value)"
+            class="theme-select"
+          >
+            <option
+              v-for="(theme, id) in availableThemes"
+              :key="id"
+              :value="id"
+            >
+              {{ theme.name }}
+            </option>
+          </select>
+          <p class="theme-hint">
+            {{ availableThemes[detectedTheme]?.description }}
+          </p>
+        </div>
+
         <div class="review-buttons">
           <button
             @click="$emit('confirm')"
@@ -141,7 +180,7 @@ async function generatePrompt() {
             ✏️ Edit & Add More
           </button>
           <button
-            @click="$emit('cancel')"
+            @click="handleCancelClick"
             class="cancel-btn"
             :disabled="isLoading"
           >
@@ -171,7 +210,7 @@ async function generatePrompt() {
         <!-- Build from Scratch -->
         <div v-if="!usePrompt" class="scratch-mode">
           <div class="prompt-box">
-            <p>Start by sharing a memory from your childhood...</p>
+            <p>Share a memory that's meaningful to you...</p>
           </div>
 
           <textarea
@@ -319,7 +358,7 @@ async function generatePrompt() {
             Done Building
           </button>
           <button
-            @click="$emit('cancel')"
+            @click="handleCancelClick"
             class="cancel-btn"
             :disabled="isLoading"
           >
@@ -328,6 +367,18 @@ async function generatePrompt() {
         </div>
       </div>
     </div>
+
+    <!-- Confirmation Modal -->
+    <ConfirmationModal
+      v-if="showCancelConfirm"
+      title="Discard Memory?"
+      message="Are you sure you want to discard this memory? All progress will be lost."
+      confirm-text="Discard"
+      cancel-text="Keep Working"
+      :is-dangerous="true"
+      @confirm="confirmCancel"
+      @cancel="rejectCancel"
+    />
   </div>
 </template>
 
@@ -460,6 +511,52 @@ async function generatePrompt() {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.theme-section {
+  background: #f5f5f7;
+  border: 1px solid #e5e5e7;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.theme-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.theme-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  background: white;
+  color: #333;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.theme-select:hover {
+  border-color: #667eea;
+}
+
+.theme-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.theme-hint {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .review-buttons {

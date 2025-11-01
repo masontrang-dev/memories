@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
+import ConfirmationModal from "./ConfirmationModal.vue";
 
 const props = defineProps({
   memories: Array,
@@ -21,8 +22,26 @@ const expandedId = ref(null);
 const editText = ref("");
 const editTags = ref([]);
 const newTagInput = ref("");
+const showDeleteConfirm = ref(false);
+const memoryToDelete = ref(null);
 
 const hasMemories = computed(() => props.memories && props.memories.length > 0);
+
+function handleDeleteClick(memoryId) {
+  memoryToDelete.value = memoryId;
+  showDeleteConfirm.value = true;
+}
+
+function confirmDelete() {
+  showDeleteConfirm.value = false;
+  emit("delete", memoryToDelete.value);
+  memoryToDelete.value = null;
+}
+
+function rejectDelete() {
+  showDeleteConfirm.value = false;
+  memoryToDelete.value = null;
+}
 
 function handleSearch() {
   emit("search");
@@ -174,7 +193,7 @@ function addTag() {
                 <button class="edit-btn" @click="startEdit(memory)">
                   Edit
                 </button>
-                <button class="delete-btn" @click="$emit('delete', memory.id)">
+                <button class="delete-btn" @click="handleDeleteClick(memory.id)">
                   Delete
                 </button>
               </div>
@@ -225,6 +244,18 @@ function addTag() {
         {{ memoryCount }} memory{{ memoryCount !== 1 ? "ies" : "" }} saved
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <ConfirmationModal
+      v-if="showDeleteConfirm"
+      title="Delete Memory?"
+      message="Are you sure you want to delete this memory? This action cannot be undone."
+      confirm-text="Delete"
+      cancel-text="Keep It"
+      :is-dangerous="true"
+      @confirm="confirmDelete"
+      @cancel="rejectDelete"
+    />
   </div>
 </template>
 
