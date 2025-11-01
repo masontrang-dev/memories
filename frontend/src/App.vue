@@ -1,0 +1,443 @@
+<script setup>
+import { ref, computed, onMounted } from "vue";
+import MemoryBuilder from "./components/MemoryBuilder.vue";
+import MemoryList from "./components/MemoryList.vue";
+
+const API_URL = "http://localhost:3001";
+const selectedModel = ref("llama3");
+const availableModels = [
+  { value: "phi3", label: "Phi3 (Fast)" },
+  { value: "mistral", label: "Mistral (Balanced)" },
+  { value: "llama3", label: "Llama3 (Best Quality)" },
+];
+
+const currentMemory = ref("");
+const memoryHistory = ref([]);
+const llmResponse = ref("");
+const isLoading = ref(false);
+const isBuilding = ref(false);
+const isReviewing = ref(false);
+const summarizedMemory = ref("");
+const generatedTags = ref([]);
+const generatedPrompt = ref("");
+const allMemories = ref([]);
+const displayedMemories = ref([]);
+const searchInput = ref("");
+const isSearching = ref(false);
+
+const memoryCount = computed(() => allMemories.value.length);
+
+onMounted(() => {
+  loadMemories();
+});
+
+async function loadMemories() {
+  try {
+    const response = await fetch(`${API_URL}/api/memories`);
+    const data = await response.json();
+    allMemories.value = data.memories;
+    displayedMemories.value = data.memories;
+  } catch (error) {
+    console.error("Error loading memories:", error);
+  }
+}
+
+async function startMemory(initialMemory) {
+  currentMemory.value = initialMemory;
+  memoryHistory.value = [initialMemory];
+  isBuilding.value = true;
+  llmResponse.value = "";
+
+  // Get initial follow-up question from LLM
+  await getFollowUpQuestion();
+}
+
+async function getFollowUpQuestion() {
+  isLoading.value = true;
+
+  try {
+    const fullMemory = memoryHistory.value.join("\n\n");
+    const prompt = `You are helping someone expand on a childhood memory. The memory so far is:\n\n"${fullMemory}"\n\nAsk ONE specific follow-up question to help them add more vivid details or context to this memory. Keep it conversational and brief. Examples of good questions: "What did it smell like?", "Who else was there?", "How did it make you feel?", "What happened next?"`;
+
+    const response = await fetch(`${API_URL}/api/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: selectedModel.value,
+        prompt: prompt,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to get follow-up question");
+    }
+
+    const data = await response.json();
+    llmResponse.value = data.response || "Tell me more about this memory...";
+  } catch (error) {
+    llmResponse.value = "Tell me more about this memory...";
+    console.error("Error:", error);
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+async function addDetail(detail) {
+  if (!detail.trim()) return;
+
+  memoryHistory.value.push(detail);
+
+  // Get next follow-up question
+  await getFollowUpQuestion();
+}
+
+async function finishMemory() {
+  isLoading.value = true;
+
+  try {
+    const fullMemory = memoryHistory.value.join("\n\n");
+
+    // Determine length-appropriate word limit based on input
+    const inputLength = fullMemory.length;
+    let wordLimit = 150;
+    if (inputLength > 500) {
+      wordLimit = 300;
+    } else if (inputLength > 300) {
+      wordLimit = 250;
+    }
+
+    const prompt = `You are a storyteller preserving precious childhood memories. Transform this memory into a personal narrative that captures not just what happened, but the feeling, the sensations, and the significance. Keep it under ${wordLimit} words but make every word count. Keep the voice of how the memory details were written. Do not add any additional details or context. \n\nMemory details:\n${fullMemory}\n\nNarrative:`;
+
+    const response = await fetch(`${API_URL}/api/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: selectedModel.value,
+        prompt: prompt,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to summarize memory");
+    }
+
+    const data = await response.json();
+    summarizedMemory.value = data.response || fullMemory;
+
+    // Generate tags for the memory
+    const tagsPrompt = `Analyze this memory and extract 2-4 relevant category tags. Return ONLY the tags as a comma-separated list, nothing else. Examples: childhood, cultural traditions, family, school, adventure, friendship, holiday, food, travel, learning.\n\nMemory:\n${summarizedMemory.value}\n\nTags:`;
+
+    const tagsResponse = await fetch(`${API_URL}/api/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: selectedModel.value,
+        prompt: tagsPrompt,
+      }),
+    });
+
+    if (tagsResponse.ok) {
+      const tagsData = await tagsResponse.json();
+      const tagsText = tagsData.response || "";
+      const tags = tagsText
+        .split(",")
+        .map((tag) => tag.trim().toLowerCase())
+        .filter((tag) => tag.length > 0)
+        .slice(0, 4);
+      generatedTags.value = tags;
+    }
+
+    isBuilding.value = false;
+    isReviewing.value = true;
+  } catch (error) {
+    console.error("Error:", error);
+    alert(`Error summarizing memory: ${error.message}`);
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+async function confirmMemory() {
+  isLoading.value = true;
+
+  try {
+    const response = await fetch(`${API_URL}/api/memories`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text: summarizedMemory.value,
+        tags: generatedTags.value,
+        model: selectedModel.value,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to save memory");
+    }
+
+    // Reset form
+    currentMemory.value = "";
+    memoryHistory.value = [];
+    llmResponse.value = "";
+    summarizedMemory.value = "";
+    generatedTags.value = [];
+    isReviewing.value = false;
+
+    // Reload memories
+    await loadMemories();
+  } catch (error) {
+    console.error("Error:", error);
+    alert(`Error saving memory: ${error.message}`);
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+function editMemory() {
+  isReviewing.value = false;
+  isBuilding.value = true;
+}
+
+function cancelMemory() {
+  currentMemory.value = "";
+  memoryHistory.value = [];
+  llmResponse.value = "";
+  isBuilding.value = false;
+}
+
+async function searchMemories() {
+  const query = searchInput.value.trim();
+
+  if (!query) {
+    displayedMemories.value = allMemories.value;
+    return;
+  }
+
+  isSearching.value = true;
+
+  try {
+    const response = await fetch(`${API_URL}/api/memories/search`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query, limit: 10 }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Search failed");
+    }
+
+    const data = await response.json();
+    displayedMemories.value = data.results;
+  } catch (error) {
+    console.error("Error:", error);
+  } finally {
+    isSearching.value = false;
+  }
+}
+
+async function updateMemory(memoryData) {
+  try {
+    const response = await fetch(`${API_URL}/api/memories/${memoryData.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text: memoryData.text,
+        tags: memoryData.tags,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to update memory");
+    }
+
+    await loadMemories();
+  } catch (error) {
+    console.error("Error:", error);
+    alert(`Error updating memory: ${error.message}`);
+  }
+}
+
+async function deleteMemory(id) {
+  if (!confirm("Are you sure you want to delete this memory?")) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/api/memories/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to delete memory");
+    }
+
+    await loadMemories();
+  } catch (error) {
+    console.error("Error:", error);
+    alert(`Error deleting memory: ${error.message}`);
+  }
+}
+
+function clearSearch() {
+  searchInput.value = "";
+  displayedMemories.value = allMemories.value;
+}
+
+async function generateMemoryPrompt() {
+  isLoading.value = true;
+
+  try {
+    const promptRequest = `Generate a creative, open-ended prompt to help someone recall a childhood memory. The prompt should be warm, nostalgic, and specific enough to spark memories but open enough for any memory. Return ONLY the prompt, nothing else. Examples: "What's a memory that makes you smile when you think about it?", "Describe a place from your childhood that felt magical to you."`;
+
+    const response = await fetch(`${API_URL}/api/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: selectedModel.value,
+        prompt: promptRequest,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to generate prompt");
+    }
+
+    const data = await response.json();
+    generatedPrompt.value = data.response || "";
+  } catch (error) {
+    console.error("Error:", error);
+    alert(`Error generating prompt: ${error.message}`);
+  } finally {
+    isLoading.value = false;
+  }
+}
+</script>
+
+<template>
+  <div class="app">
+    <div class="model-selector">
+      <label for="model-select">AI Model:</label>
+      <select v-model="selectedModel" id="model-select">
+        <option
+          v-for="model in availableModels"
+          :key="model.value"
+          :value="model.value"
+        >
+          {{ model.label }}
+        </option>
+      </select>
+    </div>
+    <div class="main-container">
+      <!-- Memory Builder (Main) -->
+      <MemoryBuilder
+        :is-building="isBuilding"
+        :is-reviewing="isReviewing"
+        :current-memory="currentMemory"
+        :memory-history="memoryHistory"
+        :llm-response="llmResponse"
+        :summarized-memory="summarizedMemory"
+        :generated-tags="generatedTags"
+        :generated-prompt="generatedPrompt"
+        :is-loading="isLoading"
+        @start="startMemory"
+        @add-detail="addDetail"
+        @finish="finishMemory"
+        @confirm="confirmMemory"
+        @edit="editMemory"
+        @cancel="cancelMemory"
+        @update:generated-tags="generatedTags = $event"
+        @generate-prompt="generateMemoryPrompt"
+      />
+
+      <!-- Memories List (Sidebar) -->
+      <MemoryList
+        :memories="displayedMemories"
+        :memory-count="memoryCount"
+        :search-input="searchInput"
+        :is-searching="isSearching"
+        @update:search-input="searchInput = $event"
+        @search="searchMemories"
+        @update-memory="updateMemory"
+        @delete="deleteMemory"
+        @clear-search="clearSearch"
+      />
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.app {
+  min-height: 100vh;
+  background: #f5f5f7;
+  padding: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+}
+
+.model-selector {
+  max-width: 1400px;
+  margin: 0 auto 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.model-selector label {
+  color: #555;
+  font-weight: 500;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.model-selector select {
+  padding: 8px 12px;
+  border: 1px solid #d5d5d7;
+  border-radius: 8px;
+  background: white;
+  color: #333;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.model-selector select:hover {
+  border-color: #999;
+}
+
+.model-selector select:focus {
+  outline: none;
+  border-color: #555;
+  box-shadow: 0 0 0 2px rgba(85, 85, 85, 0.1);
+}
+
+.main-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .main-container {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
