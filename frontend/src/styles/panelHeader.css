@@ -1,0 +1,68 @@
+/* Panel Header Styles */
+.panel-header {
+  background: white;
+  color: #333;
+  padding: 24px;
+  border-bottom: 1px solid #e5e5e7;
+}
+
+.panel-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #333;
+}
+
+.panel-header p {
+  font-size: 14px;
+  font-weight: 400;
+  opacity: 0.9;
+  margin: 0;
+  color: #666;
+}
+
+/* Panel Content Styles */
+.panel-content {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: white;
+}
+
+/* Section Labels */
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+/* Headings */
+.panel-header h2,
+.panel-header h3,
+.panel-header h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: #333;
+}
+
+/* Body Text */
+.panel-body-text {
+  font-size: 14px;
+  font-weight: 400;
+  color: #333;
+  line-height: 1.5;
+}
+
+/* Small Text */
+.panel-small-text {
+  font-size: 12px;
+  font-weight: 400;
+  color: #666;
+  line-height: 1.4;
+}

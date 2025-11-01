@@ -7,7 +7,7 @@ defineProps({
   availableModels: Array,
 });
 
-defineEmits(["update:selectedModel"]);
+defineEmits(["update:selectedModel", "open-settings"]);
 
 const modelLabel = computed(() => {
   const model = defineProps.availableModels?.find(
@@ -37,22 +37,31 @@ const modelLabel = computed(() => {
         </div>
       </div>
 
-      <!-- Right: Model Selector -->
-      <div class="model-selector">
-        <label for="header-model-select">AI Model:</label>
-        <select
-          id="header-model-select"
-          :value="selectedModel"
-          @change="$emit('update:selectedModel', $event.target.value)"
-        >
-          <option
-            v-for="model in availableModels"
-            :key="model.value"
-            :value="model.value"
+      <!-- Right: Controls -->
+      <div class="controls">
+        <div class="model-selector">
+          <label for="header-model-select">AI Model:</label>
+          <select
+            id="header-model-select"
+            :value="selectedModel"
+            @change="$emit('update:selectedModel', $event.target.value)"
           >
-            {{ model.label }}
-          </option>
-        </select>
+            <option
+              v-for="model in availableModels"
+              :key="model.value"
+              :value="model.value"
+            >
+              {{ model.label }}
+            </option>
+          </select>
+        </div>
+        <button
+          class="settings-btn"
+          title="Profile Settings"
+          @click="$emit('open-settings')"
+        >
+          ⚙️
+        </button>
       </div>
     </div>
   </header>
@@ -130,6 +139,36 @@ const modelLabel = computed(() => {
 .stat-value {
   font-size: 24px;
   font-weight: 700;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.settings-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  color: white;
+  font-size: 18px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.settings-btn:active {
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .model-selector {

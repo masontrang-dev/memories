@@ -43,34 +43,6 @@ defineEmits(['update:modelValue', 'save'])
   overflow: hidden;
 }
 
-.panel-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 20px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.panel-header h2 {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.panel-header p {
-  font-size: 12px;
-  opacity: 0.9;
-}
-
-.panel-content {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  background: #f5f3f0;
-}
-
 .input-group {
   display: flex;
   flex-direction: column;

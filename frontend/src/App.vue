@@ -1,11 +1,16 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
+import "./styles/panelHeader.css";
 import MemoryBuilder from "./components/MemoryBuilder.vue";
 import MemoryList from "./components/MemoryList.vue";
+import TimelineView from "./components/TimelineView.vue";
+import SettingsPage from "./components/SettingsPage.vue";
 import AppHeader from "./components/AppHeader.vue";
 import ToastContainer from "./components/ToastContainer.vue";
+import ViewTabs from "./components/ViewTabs.vue";
 import { useToast } from "./composables/useToast";
 import { useUserPreferences } from "./composables/useUserPreferences";
+import { useUserProfile } from "./composables/useUserProfile";
 import { useTheme } from "./composables/useTheme";
 import { useThemeClassification } from "./composables/useThemeClassification";
 import { themes } from "./config/themeConfig";
@@ -20,11 +25,15 @@ const availableModels = [
 
 const { success, error, info } = useToast();
 const { preferences, loadPreferences } = useUserPreferences();
+const { userProfile, loadProfile } = useUserProfile();
 const { currentTheme, getInitialPrompt, getFollowUpPrompt, getTags } =
   useTheme();
 const { classifyMemoryTheme } = useThemeClassification();
 
 const detectedMemoryTheme = ref(null);
+const currentPage = ref("app"); // 'app' or 'settings'
+const currentView = ref("memories"); // 'memories', 'timeline', or 'search'
+const showProfileModal = ref(false);
 
 const currentMemory = ref("");
 const memoryHistory = ref([]);
@@ -39,12 +48,18 @@ const allMemories = ref([]);
 const displayedMemories = ref([]);
 const searchInput = ref("");
 const isSearching = ref(false);
+const inferredYear = ref(null);
 
 const memoryCount = computed(() => allMemories.value.length);
 
 onMounted(() => {
   loadPreferences();
+  loadProfile();
   loadMemories();
+  // Show profile modal on first visit
+  if (!userProfile.value.completedProfile) {
+    showProfileModal.value = true;
+  }
 });
 
 async function loadMemories() {
@@ -189,10 +204,15 @@ async function finishMemory() {
   }
 }
 
-async function confirmMemory() {
+async function confirmMemory(data) {
   isLoading.value = true;
 
   try {
+    // Use year from MemoryBuilder if provided
+    if (data && data.year) {
+      inferredYear.value = data.year;
+    }
+
     const response = await fetch(`${API_URL}/api/memories`, {
       method: "POST",
       headers: {
@@ -203,6 +223,7 @@ async function confirmMemory() {
         tags: generatedTags.value,
         model: selectedModel.value,
         theme: detectedMemoryTheme.value,
+        year: inferredYear.value,
       }),
     });
 
@@ -217,6 +238,7 @@ async function confirmMemory() {
     llmResponse.value = "";
     summarizedMemory.value = "";
     generatedTags.value = [];
+    inferredYear.value = null;
     isReviewing.value = false;
 
     // Reload memories
@@ -367,74 +389,99 @@ async function generateMemoryPrompt() {
 
 <template>
   <div class="app">
-    <AppHeader
-      :memory-count="memoryCount"
+    <!-- Settings Page -->
+    <SettingsPage
+      v-if="currentPage === 'settings'"
       :selected-model="selectedModel"
-      :available-models="availableModels"
-      @update:selected-model="selectedModel = $event"
+      @close="currentPage = 'app'"
     />
-    <ToastContainer />
-    <div class="main-container">
-      <!-- Memory Builder (Main) -->
-      <MemoryBuilder
-        :is-building="isBuilding"
-        :is-reviewing="isReviewing"
-        :current-memory="currentMemory"
-        :memory-history="memoryHistory"
-        :llm-response="llmResponse"
-        :summarized-memory="summarizedMemory"
-        :generated-tags="generatedTags"
-        :generated-prompt="generatedPrompt"
-        :is-loading="isLoading"
-        :detected-theme="detectedMemoryTheme"
-        :available-themes="themes"
-        @start="startMemory"
-        @add-detail="addDetail"
-        @finish="finishMemory"
-        @confirm="confirmMemory"
-        @edit="editMemory"
-        @cancel="cancelMemory"
-        @update:generated-tags="generatedTags = $event"
-        @update:detected-theme="detectedMemoryTheme = $event"
-        @generate-prompt="generateMemoryPrompt"
-      />
 
-      <!-- Memories List (Sidebar) -->
-      <MemoryList
-        :memories="displayedMemories"
-        :memory-count="memoryCount"
-        :search-input="searchInput"
-        :is-searching="isSearching"
-        @update:search-input="searchInput = $event"
-        @search="searchMemories"
-        @update-memory="updateMemory"
-        @delete="deleteMemory"
-        @clear-search="clearSearch"
+    <!-- Main App -->
+    <template v-else>
+      <UserProfileModal
+        v-if="showProfileModal"
+        :selected-model="selectedModel"
+        @complete="showProfileModal = false"
       />
-    </div>
+      <AppHeader
+        :memory-count="memoryCount"
+        :selected-model="selectedModel"
+        :available-models="availableModels"
+        @update:selected-model="selectedModel = $event"
+        @open-settings="currentPage = 'settings'"
+      />
+      <ToastContainer />
+      <ViewTabs
+        :current-view="currentView"
+        @update:current-view="currentView = $event"
+      />
+      <div class="main-container" v-if="currentView === 'memories'">
+        <!-- Memory Builder (Main) -->
+        <MemoryBuilder
+          :is-building="isBuilding"
+          :is-reviewing="isReviewing"
+          :current-memory="currentMemory"
+          :memory-history="memoryHistory"
+          :llm-response="llmResponse"
+          :summarized-memory="summarizedMemory"
+          :generated-tags="generatedTags"
+          :generated-prompt="generatedPrompt"
+          :is-loading="isLoading"
+          :detected-theme="detectedMemoryTheme"
+          :available-themes="themes"
+          :selected-model="selectedModel"
+          @start="startMemory"
+          @add-detail="addDetail"
+          @finish="finishMemory"
+          @confirm="confirmMemory"
+          @edit="editMemory"
+          @cancel="cancelMemory"
+          @update:generated-tags="generatedTags = $event"
+          @update:detected-theme="detectedMemoryTheme = $event"
+          @generate-prompt="generateMemoryPrompt"
+        />
+      </div>
+
+      <!-- Timeline View -->
+      <div v-if="currentView === 'timeline'" class="main-container">
+        <TimelineView :memories="allMemories" />
+      </div>
+
+      <!-- Search View -->
+      <div v-if="currentView === 'search'" class="main-container">
+        <MemoryList
+          :memories="displayedMemories"
+          :is-searching="isSearching"
+          @search="searchMemories"
+          @update="updateMemory"
+          @delete="deleteMemory"
+          @clear-search="clearSearch"
+        />
+      </div>
+    </template>
   </div>
 </template>
 
 <style scoped>
 .app {
-  min-height: 100vh;
+  height: 100vh;
   background: #f5f5f7;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
     sans-serif;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-.main-container {
+.main-container,
+.timeline-container,
+.search-container {
   flex: 1;
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
   padding: 24px;
   width: 100%;
+  height: 100%;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 @media (max-width: 1024px) {

@@ -114,7 +114,7 @@ function addTag() {
 <template>
   <div class="panel">
     <div class="panel-header">
-      <h2>🧠 Memory Bank</h2>
+      <h1>🧠 Memory Bank</h1>
       <p>All your saved memories</p>
     </div>
     <div class="panel-content">
@@ -193,7 +193,10 @@ function addTag() {
                 <button class="edit-btn" @click="startEdit(memory)">
                   Edit
                 </button>
-                <button class="delete-btn" @click="handleDeleteClick(memory.id)">
+                <button
+                  class="delete-btn"
+                  @click="handleDeleteClick(memory.id)"
+                >
                   Delete
                 </button>
               </div>
@@ -267,34 +270,6 @@ function addTag() {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.panel-header {
-  background: white;
-  color: #333;
-  padding: 20px;
-  border-bottom: 1px solid #e5e5e7;
-}
-
-.panel-header h2 {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.panel-header p {
-  font-size: 12px;
-  color: #999;
-}
-
-.panel-content {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  background: white;
 }
 
 .search-box {

@@ -1,6 +1,8 @@
 <script setup>
-import { ref } from "vue";
+import { ref, computed, watch } from "vue";
 import ConfirmationModal from "./ConfirmationModal.vue";
+import { useMemoryTimeline } from "../composables/useMemoryTimeline";
+import { useUserProfile } from "../composables/useUserProfile";
 
 const props = defineProps({
   isBuilding: Boolean,
@@ -14,7 +16,39 @@ const props = defineProps({
   isLoading: Boolean,
   detectedTheme: String,
   availableThemes: Object,
+  selectedModel: String,
 });
+
+const { inferYearWithLLM, getDecadeFromYear } = useMemoryTimeline();
+const { getBirthYear } = useUserProfile();
+
+const inferredYear = ref(null);
+const isInferringYear = ref(false);
+
+const inferredDecade = computed(() => {
+  return inferredYear.value ? getDecadeFromYear(inferredYear.value) : null;
+});
+
+const inferDecadeFromMemory = async (memoryText, selectedModel) => {
+  if (!memoryText || !selectedModel) return;
+  const birthYear = getBirthYear();
+  if (!birthYear) return;
+
+  isInferringYear.value = true;
+  const year = await inferYearWithLLM(memoryText, birthYear, selectedModel);
+  inferredYear.value = year;
+  isInferringYear.value = false;
+};
+
+// Watch for when we enter review state and trigger LLM inference
+watch(
+  () => props.isReviewing,
+  async (isReviewing) => {
+    if (isReviewing && props.summarizedMemory && props.selectedModel) {
+      await inferDecadeFromMemory(props.summarizedMemory, props.selectedModel);
+    }
+  }
+);
 
 const emit = defineEmits([
   "start",
@@ -34,6 +68,33 @@ const usePrompt = ref(false);
 const isGeneratingPrompt = ref(false);
 const promptSelected = ref(false);
 const showCancelConfirm = ref(false);
+const selectedYear = ref(null);
+
+const yearOptions = computed(() => {
+  if (!inferredYear.value) {
+    // If no year detected, show a range of recent years
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = currentYear - 50; i <= currentYear; i++) {
+      years.push(i);
+    }
+    return years;
+  }
+  
+  // Round to nearest 5
+  const roundedYear = Math.round(inferredYear.value / 5) * 5;
+  
+  // Show all years from (rounded - 5) to (rounded + 5)
+  const years = [];
+  for (let i = roundedYear - 5; i <= roundedYear + 5; i++) {
+    years.push(i);
+  }
+  return years;
+});
+
+const displayYear = computed(() => {
+  return selectedYear.value || inferredYear.value || "Unknown";
+});
 
 function handleCancelClick() {
   showCancelConfirm.value = true;
@@ -103,6 +164,18 @@ async function generatePrompt() {
           <p>{{ summarizedMemory }}</p>
         </div>
 
+        <!-- Year Display -->
+        <div class="decade-section">
+          <div class="decade-badge">📅 {{ displayYear }}</div>
+          <p class="decade-hint">{{ isInferringYear ? 'Analyzing memory...' : (inferredYear ? `Detected: ${inferredYear}` : 'When did this memory happen?') }}</p>
+          <select v-model="selectedYear" class="decade-select" :disabled="isInferringYear">
+            <option :value="null">{{ inferredYear ? 'Keep detected year' : 'Select a year...' }}</option>
+            <option v-for="year in yearOptions" :key="year" :value="year">
+              {{ year }}
+            </option>
+          </select>
+        </div>
+
         <!-- Tags Section -->
         <div
           v-if="generatedTags && generatedTags.length > 0"
@@ -170,7 +243,7 @@ async function generatePrompt() {
 
         <div class="review-buttons">
           <button
-            @click="$emit('confirm')"
+            @click="$emit('confirm', { year: displayYear })"
             class="confirm-btn"
             :disabled="isLoading"
           >
@@ -559,6 +632,50 @@ async function generatePrompt() {
   line-height: 1.4;
 }
 
+.decade-section {
+  background: linear-gradient(135deg, #f0f7ff 0%, #e8f4ff 100%);
+  border: 1px solid #b3d9ff;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+}
+
+.decade-badge {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0066cc;
+  margin-bottom: 6px;
+}
+
+.decade-hint {
+  font-size: 12px;
+  color: #0066cc;
+  margin: 0 0 8px 0;
+  opacity: 0.9;
+}
+
+.decade-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #b3d9ff;
+  border-radius: 6px;
+  font-size: 13px;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.decade-select:hover {
+  border-color: #0066cc;
+}
+
+.decade-select:focus {
+  outline: none;
+  border-color: #0066cc;
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+}
+
 .review-buttons {
   display: flex;
   gap: 8px;
@@ -593,34 +710,6 @@ async function generatePrompt() {
 
 .review-buttons .cancel-btn:hover:not(:disabled) {
   background: #da190b;
-}
-
-.panel-header {
-  background: white;
-  color: #333;
-  padding: 24px;
-  border-bottom: 1px solid #e5e5e7;
-}
-
-.panel-header h1 {
-  font-size: 28px;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-
-.panel-header p {
-  font-size: 14px;
-  opacity: 0.9;
-}
-
-.panel-content {
-  flex: 1;
-  padding: 24px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  background: white;
 }
 
 /* Initial State */

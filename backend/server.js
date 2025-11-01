@@ -132,7 +132,7 @@ async function generateSummary(text, model = "mistral") {
 
 // Save a new memory
 app.post("/api/memories", async (req, res) => {
-  const { text, tags = null, model = "mistral" } = req.body;
+  const { text, tags = null, model = "mistral", year = null, theme = null } = req.body;
 
   if (!text || text.trim().length === 0) {
     return res.status(400).json({ error: "Memory text is required" });
@@ -156,6 +156,8 @@ app.post("/api/memories", async (req, res) => {
       summary: summary,
       embedding: embedding,
       tags: memoryTags,
+      year: year || null,
+      theme: theme || null,
       createdAt: new Date().toISOString(),
     };
 
@@ -169,6 +171,8 @@ app.post("/api/memories", async (req, res) => {
         text: memory.text,
         summary: memory.summary,
         tags: memory.tags,
+        year: memory.year,
+        theme: memory.theme,
         createdAt: memory.createdAt,
       },
     });
@@ -188,6 +192,8 @@ app.get("/api/memories", (req, res) => {
     text: m.text,
     summary: m.summary || m.text.substring(0, 150),
     tags: m.tags || [],
+    year: m.year || null,
+    theme: m.theme || null,
     createdAt: m.createdAt,
   }));
   res.json({ memories: memoryList });
