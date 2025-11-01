@@ -1,87 +1,93 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref } from "vue";
 
 const props = defineProps({
   memories: Array,
   memoryCount: Number,
   searchInput: String,
   isSearching: Boolean,
-})
+});
 
-const emit = defineEmits(['update:search-input', 'search', 'delete', 'clear-search', 'update-memory'])
+const emit = defineEmits([
+  "update:search-input",
+  "search",
+  "delete",
+  "clear-search",
+  "update-memory",
+]);
 
-const editingId = ref(null)
-const expandedId = ref(null)
-const editText = ref('')
-const editTags = ref([])
-const newTagInput = ref('')
+const editingId = ref(null);
+const expandedId = ref(null);
+const editText = ref("");
+const editTags = ref([]);
+const newTagInput = ref("");
 
-const hasMemories = computed(() => props.memories && props.memories.length > 0)
+const hasMemories = computed(() => props.memories && props.memories.length > 0);
 
 function handleSearch() {
-  emit('search')
+  emit("search");
 }
 
 function handleKeyPress(e) {
-  if (e.key === 'Enter') {
-    handleSearch()
+  if (e.key === "Enter") {
+    handleSearch();
   }
 }
 
 function formatDate(dateString) {
-  const date = new Date(dateString)
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
+  const date = new Date(dateString);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
 
   if (date.toDateString() === today.toDateString()) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   } else if (date.toDateString() === yesterday.toDateString()) {
-    return 'Yesterday'
+    return "Yesterday";
   } else {
     return date.toLocaleDateString([], {
-      month: 'short',
-      day: 'numeric',
-      year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
-    })
+      month: "short",
+      day: "numeric",
+      year: date.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
+    });
   }
 }
 
 function getSimilarityPercentage(similarity) {
-  return Math.round(similarity * 100)
+  return Math.round(similarity * 100);
 }
 
 function startEdit(memory) {
-  editingId.value = memory.id
-  editText.value = memory.text
-  editTags.value = [...(memory.tags || [])]
+  editingId.value = memory.id;
+  editText.value = memory.text;
+  editTags.value = [...(memory.tags || [])];
 }
 
 function cancelEdit() {
-  editingId.value = null
-  editText.value = ''
-  editTags.value = []
-  newTagInput.value = ''
+  editingId.value = null;
+  editText.value = "";
+  editTags.value = [];
+  newTagInput.value = "";
 }
 
 function saveEdit(memoryId) {
-  emit('update-memory', {
+  emit("update-memory", {
     id: memoryId,
     text: editText.value,
     tags: editTags.value,
-  })
-  editingId.value = null
+  });
+  editingId.value = null;
 }
 
 function removeTag(index) {
-  editTags.value.splice(index, 1)
+  editTags.value.splice(index, 1);
 }
 
 function addTag() {
-  const newTag = newTagInput.value.trim().toLowerCase()
+  const newTag = newTagInput.value.trim().toLowerCase();
   if (newTag && !editTags.value.includes(newTag)) {
-    editTags.value.push(newTag)
-    newTagInput.value = ''
+    editTags.value.push(newTag);
+    newTagInput.value = "";
   }
 }
 </script>
@@ -89,7 +95,7 @@ function addTag() {
 <template>
   <div class="panel">
     <div class="panel-header">
-      <h2>🧠 Your Memories</h2>
+      <h2>🧠 Memory Bank</h2>
       <p>All your saved memories</p>
     </div>
     <div class="panel-content">
@@ -102,14 +108,20 @@ function addTag() {
           placeholder="Search memories..."
         />
         <button :disabled="isSearching" @click="handleSearch">
-          {{ isSearching ? '...' : 'Search' }}
+          {{ isSearching ? "..." : "Search" }}
         </button>
       </div>
 
       <div class="memories-list">
         <div v-if="!hasMemories" class="empty-state">
           <div class="empty-state-icon">🧠</div>
-          <p>{{ searchInput ? 'No matching memories found' : 'No memories yet. Start by adding one!' }}</p>
+          <p>
+            {{
+              searchInput
+                ? "No matching memories found"
+                : "No memories yet. Start by adding one!"
+            }}
+          </p>
         </div>
 
         <div v-for="memory in memories" :key="memory.id" class="memory-item">
@@ -118,7 +130,9 @@ function addTag() {
             <div class="memory-header">
               <!-- Summary View (Collapsed) -->
               <div v-if="expandedId !== memory.id" class="summary-view">
-                <div class="memory-summary">{{ memory.summary || memory.text }}</div>
+                <div class="memory-summary">
+                  {{ memory.summary || memory.text }}
+                </div>
               </div>
 
               <!-- Full View (Expanded) -->
@@ -127,26 +141,42 @@ function addTag() {
               </div>
 
               <!-- Expand/Collapse Button -->
-              <button 
+              <button
                 class="expand-toggle-btn"
-                @click="expandedId = expandedId === memory.id ? null : memory.id"
+                @click="
+                  expandedId = expandedId === memory.id ? null : memory.id
+                "
                 :title="expandedId === memory.id ? 'Collapse' : 'Expand'"
               >
-                {{ expandedId === memory.id ? '▼' : '▶' }}
+                {{ expandedId === memory.id ? "▼" : "▶" }}
               </button>
             </div>
 
-            <div v-if="memory.tags && memory.tags.length > 0" class="memory-tags">
-              <span v-for="tag in memory.tags" :key="tag" class="tag">{{ tag }}</span>
+            <div
+              v-if="memory.tags && memory.tags.length > 0"
+              class="memory-tags"
+            >
+              <span v-for="tag in memory.tags" :key="tag" class="tag">{{
+                tag
+              }}</span>
             </div>
             <div class="memory-meta">
-              <span class="memory-date">{{ formatDate(memory.createdAt) }}</span>
+              <span class="memory-date">{{
+                formatDate(memory.createdAt)
+              }}</span>
               <div style="display: flex; gap: 8px; align-items: center">
-                <span v-if="memory.similarity !== undefined" class="memory-similarity">
+                <span
+                  v-if="memory.similarity !== undefined"
+                  class="memory-similarity"
+                >
                   {{ getSimilarityPercentage(memory.similarity) }}% match
                 </span>
-                <button class="edit-btn" @click="startEdit(memory)">Edit</button>
-                <button class="delete-btn" @click="$emit('delete', memory.id)">Delete</button>
+                <button class="edit-btn" @click="startEdit(memory)">
+                  Edit
+                </button>
+                <button class="delete-btn" @click="$emit('delete', memory.id)">
+                  Delete
+                </button>
               </div>
             </div>
           </div>
@@ -154,13 +184,19 @@ function addTag() {
           <!-- Edit Mode -->
           <div v-else class="edit-mode">
             <textarea v-model="editText" class="edit-textarea"></textarea>
-            
+
             <div class="edit-tags">
               <div class="edit-tags-label">Tags</div>
               <div class="edit-tags-display">
-                <span v-for="(tag, index) in editTags" :key="index" class="edit-tag">
+                <span
+                  v-for="(tag, index) in editTags"
+                  :key="index"
+                  class="edit-tag"
+                >
                   {{ tag }}
-                  <button class="tag-remove-btn" @click="removeTag(index)">✕</button>
+                  <button class="tag-remove-btn" @click="removeTag(index)">
+                    ✕
+                  </button>
                 </span>
               </div>
               <div class="tag-input-group">
@@ -176,14 +212,18 @@ function addTag() {
             </div>
 
             <div class="edit-actions">
-              <button class="save-btn" @click="saveEdit(memory.id)">Save</button>
+              <button class="save-btn" @click="saveEdit(memory.id)">
+                Save
+              </button>
               <button class="cancel-btn" @click="cancelEdit">Cancel</button>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="memory-count">{{ memoryCount }} memory{{ memoryCount !== 1 ? 'ies' : '' }} saved</div>
+      <div class="memory-count">
+        {{ memoryCount }} memory{{ memoryCount !== 1 ? "ies" : "" }} saved
+      </div>
     </div>
   </div>
 </template>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref } from "vue";
 
 const props = defineProps({
   isBuilding: Boolean,
@@ -11,53 +11,62 @@ const props = defineProps({
   generatedTags: Array,
   generatedPrompt: String,
   isLoading: Boolean,
-})
+});
 
-const emit = defineEmits(['start', 'add-detail', 'finish', 'confirm', 'edit', 'cancel', 'update:generatedTags', 'generate-prompt'])
+const emit = defineEmits([
+  "start",
+  "add-detail",
+  "finish",
+  "confirm",
+  "edit",
+  "cancel",
+  "update:generatedTags",
+  "generate-prompt",
+]);
 
-const initialInput = ref('')
-const detailInput = ref('')
-const usePrompt = ref(false)
-const isGeneratingPrompt = ref(false)
-const promptSelected = ref(false)
+const initialInput = ref("");
+const detailInput = ref("");
+const usePrompt = ref(false);
+const isGeneratingPrompt = ref(false);
+const promptSelected = ref(false);
 
 function handleStart() {
-  const text = initialInput.value.trim()
+  const text = initialInput.value.trim();
   if (text) {
-    emit('start', text)
-    initialInput.value = ''
+    emit("start", text);
+    initialInput.value = "";
   }
 }
 
 function handleAddDetail() {
-  const text = detailInput.value.trim()
+  const text = detailInput.value.trim();
   if (text) {
-    emit('add-detail', text)
-    detailInput.value = ''
+    emit("add-detail", text);
+    detailInput.value = "";
   }
 }
 
 function handleKeyPress(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
     if (props.isBuilding) {
-      handleAddDetail()
+      handleAddDetail();
     } else if (!usePrompt.value) {
-      handleStart()
+      handleStart();
     }
   }
 }
 
 async function generatePrompt() {
-  isGeneratingPrompt.value = true
-  emit('generate-prompt')
+  isGeneratingPrompt.value = true;
+  emit("generate-prompt");
 }
 </script>
 
 <template>
   <div class="builder-panel">
     <div class="panel-header">
-      <h1>📚 Build Your Memory</h1>
+      <h1>📚 Memory Builder</h1>
       <p>Start with a memory, then let the AI help you expand it</p>
     </div>
 
@@ -66,7 +75,10 @@ async function generatePrompt() {
       <div v-if="isReviewing" class="review-state">
         <div class="review-header">
           <h2>✨ Review Your Memory</h2>
-          <p>Here's how your memory has been summarized. You can edit it or save it.</p>
+          <p>
+            Here's how your memory has been summarized. You can edit it or save
+            it.
+          </p>
         </div>
 
         <div class="summarized-box">
@@ -74,13 +86,28 @@ async function generatePrompt() {
         </div>
 
         <!-- Tags Section -->
-        <div v-if="generatedTags && generatedTags.length > 0" class="tags-section">
+        <div
+          v-if="generatedTags && generatedTags.length > 0"
+          class="tags-section"
+        >
           <div class="tags-label">Tags</div>
           <div class="tags-edit">
             <div class="tags-display">
-              <span v-for="(tag, index) in generatedTags" :key="index" class="tag-item">
+              <span
+                v-for="(tag, index) in generatedTags"
+                :key="index"
+                class="tag-item"
+              >
                 {{ tag }}
-                <button class="tag-remove" @click="$emit('update:generatedTags', generatedTags.filter((_, i) => i !== index))">
+                <button
+                  class="tag-remove"
+                  @click="
+                    $emit(
+                      'update:generatedTags',
+                      generatedTags.filter((_, i) => i !== index)
+                    )
+                  "
+                >
                   ✕
                 </button>
               </span>
@@ -88,26 +115,36 @@ async function generatePrompt() {
             <input
               type="text"
               placeholder="Add tag..."
-              @keypress.enter="(e) => {
-                const newTag = e.target.value.trim().toLowerCase();
-                if (newTag && !generatedTags.includes(newTag)) {
-                  $emit('update:generatedTags', [...generatedTags, newTag]);
+              @keypress.enter="
+                (e) => {
+                  const newTag = e.target.value.trim().toLowerCase();
+                  if (newTag && !generatedTags.includes(newTag)) {
+                    $emit('update:generatedTags', [...generatedTags, newTag]);
+                  }
+                  e.target.value = '';
                 }
-                e.target.value = '';
-              }"
+              "
               class="tag-input"
             />
           </div>
         </div>
 
         <div class="review-buttons">
-          <button @click="$emit('confirm')" class="confirm-btn" :disabled="isLoading">
-            {{ isLoading ? 'Saving...' : '💾 Save Memory' }}
+          <button
+            @click="$emit('confirm')"
+            class="confirm-btn"
+            :disabled="isLoading"
+          >
+            {{ isLoading ? "Saving..." : "💾 Save Memory" }}
           </button>
           <button @click="$emit('edit')" class="edit-btn" :disabled="isLoading">
             ✏️ Edit & Add More
           </button>
-          <button @click="$emit('cancel')" class="cancel-btn" :disabled="isLoading">
+          <button
+            @click="$emit('cancel')"
+            class="cancel-btn"
+            :disabled="isLoading"
+          >
             ✕ Cancel
           </button>
         </div>
@@ -117,13 +154,13 @@ async function generatePrompt() {
       <div v-else-if="!isBuilding" class="initial-state">
         <!-- Toggle between scratch and prompt -->
         <div class="mode-toggle">
-          <button 
+          <button
             :class="['toggle-btn', { active: !usePrompt }]"
             @click="usePrompt = false"
           >
             ✍️ Build from Scratch
           </button>
-          <button 
+          <button
             :class="['toggle-btn', { active: usePrompt }]"
             @click="usePrompt = true"
           >
@@ -144,7 +181,11 @@ async function generatePrompt() {
             class="memory-input"
           ></textarea>
 
-          <button @click="handleStart" class="start-btn" :disabled="!initialInput.trim()">
+          <button
+            @click="handleStart"
+            class="start-btn"
+            :disabled="!initialInput.trim()"
+          >
             Start Building
           </button>
         </div>
@@ -162,16 +203,22 @@ async function generatePrompt() {
             </div>
 
             <div class="prompt-actions">
-              <button 
-                @click="generatePrompt" 
+              <button
+                @click="generatePrompt"
                 class="generate-btn"
                 :disabled="isGeneratingPrompt || isLoading"
               >
-                {{ isGeneratingPrompt ? 'Generating...' : '✨ Generate Prompt' }}
+                {{
+                  isGeneratingPrompt ? "Generating..." : "✨ Generate Prompt"
+                }}
               </button>
-              <button 
+              <button
                 v-if="generatedPrompt"
-                @click="() => { promptSelected = true; }"
+                @click="
+                  () => {
+                    promptSelected = true;
+                  }
+                "
                 class="use-prompt-btn"
                 :disabled="isLoading"
               >
@@ -194,15 +241,20 @@ async function generatePrompt() {
             ></textarea>
 
             <div class="input-actions">
-              <button 
-                @click="handleStart" 
+              <button
+                @click="handleStart"
                 class="start-btn"
                 :disabled="!initialInput.trim()"
               >
                 Start Building
               </button>
-              <button 
-                @click="() => { promptSelected = false; generatedPrompt = ''; }"
+              <button
+                @click="
+                  () => {
+                    promptSelected = false;
+                    generatedPrompt = '';
+                  }
+                "
                 class="back-btn"
               >
                 ← Back to Prompts
@@ -218,7 +270,11 @@ async function generatePrompt() {
         <div class="memory-history">
           <div class="history-title">Your Memory So Far:</div>
           <div class="history-content">
-            <p v-for="(item, index) in memoryHistory" :key="index" class="history-item">
+            <p
+              v-for="(item, index) in memoryHistory"
+              :key="index"
+              class="history-item"
+            >
               {{ item }}
             </p>
           </div>
@@ -253,12 +309,20 @@ async function generatePrompt() {
             class="add-detail-btn"
             :disabled="!detailInput.trim() || isLoading"
           >
-            {{ isLoading ? 'Thinking...' : 'Add Detail' }}
+            {{ isLoading ? "Thinking..." : "Add Detail" }}
           </button>
-          <button @click="$emit('finish')" class="finish-btn" :disabled="isLoading">
+          <button
+            @click="$emit('finish')"
+            class="finish-btn"
+            :disabled="isLoading"
+          >
             Done Building
           </button>
-          <button @click="$emit('cancel')" class="cancel-btn" :disabled="isLoading">
+          <button
+            @click="$emit('cancel')"
+            class="cancel-btn"
+            :disabled="isLoading"
+          >
             Cancel
           </button>
         </div>
@@ -737,7 +801,9 @@ async function generatePrompt() {
 }
 
 @keyframes bounce {
-  0%, 80%, 100% {
+  0%,
+  80%,
+  100% {
     opacity: 0.3;
     transform: translateY(0);
   }

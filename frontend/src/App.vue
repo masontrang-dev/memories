@@ -2,6 +2,9 @@
 import { ref, computed, onMounted } from "vue";
 import MemoryBuilder from "./components/MemoryBuilder.vue";
 import MemoryList from "./components/MemoryList.vue";
+import AppHeader from "./components/AppHeader.vue";
+import ToastContainer from "./components/ToastContainer.vue";
+import { useToast } from "./composables/useToast";
 
 const API_URL = "http://localhost:3001";
 const selectedModel = ref("llama3");
@@ -10,6 +13,8 @@ const availableModels = [
   { value: "mistral", label: "Mistral (Balanced)" },
   { value: "llama3", label: "Llama3 (Best Quality)" },
 ];
+
+const { success, error, info } = useToast();
 
 const currentMemory = ref("");
 const memoryHistory = ref([]);
@@ -34,11 +39,13 @@ onMounted(() => {
 async function loadMemories() {
   try {
     const response = await fetch(`${API_URL}/api/memories`);
+    if (!response.ok) throw new Error("Failed to load memories");
     const data = await response.json();
     allMemories.value = data.memories;
     displayedMemories.value = data.memories;
-  } catch (error) {
-    console.error("Error loading memories:", error);
+  } catch (err) {
+    console.error("Error loading memories:", err);
+    error("Failed to load memories. Please check your connection.");
   }
 }
 
@@ -76,9 +83,9 @@ async function getFollowUpQuestion() {
 
     const data = await response.json();
     llmResponse.value = data.response || "Tell me more about this memory...";
-  } catch (error) {
+  } catch (err) {
     llmResponse.value = "Tell me more about this memory...";
-    console.error("Error:", error);
+    console.error("Error:", err);
   } finally {
     isLoading.value = false;
   }
@@ -155,9 +162,9 @@ async function finishMemory() {
 
     isBuilding.value = false;
     isReviewing.value = true;
-  } catch (error) {
-    console.error("Error:", error);
-    alert(`Error summarizing memory: ${error.message}`);
+  } catch (err) {
+    console.error("Error:", err);
+    error(`Error summarizing memory: ${err.message}`);
   } finally {
     isLoading.value = false;
   }
@@ -194,9 +201,10 @@ async function confirmMemory() {
 
     // Reload memories
     await loadMemories();
-  } catch (error) {
-    console.error("Error:", error);
-    alert(`Error saving memory: ${error.message}`);
+    success("Memory saved successfully!");
+  } catch (err) {
+    console.error("Error:", err);
+    error(`Error saving memory: ${err.message}`);
   } finally {
     isLoading.value = false;
   }
@@ -239,8 +247,10 @@ async function searchMemories() {
 
     const data = await response.json();
     displayedMemories.value = data.results;
-  } catch (error) {
-    console.error("Error:", error);
+    info(`Found ${data.results.length} matching memories`);
+  } catch (err) {
+    console.error("Error:", err);
+    error("Search failed. Please try again.");
   } finally {
     isSearching.value = false;
   }
@@ -265,9 +275,10 @@ async function updateMemory(memoryData) {
     }
 
     await loadMemories();
-  } catch (error) {
-    console.error("Error:", error);
-    alert(`Error updating memory: ${error.message}`);
+    success("Memory updated successfully!");
+  } catch (err) {
+    console.error("Error:", err);
+    error(`Error updating memory: ${err.message}`);
   }
 }
 
@@ -286,9 +297,10 @@ async function deleteMemory(id) {
     }
 
     await loadMemories();
-  } catch (error) {
-    console.error("Error:", error);
-    alert(`Error deleting memory: ${error.message}`);
+    success("Memory deleted successfully!");
+  } catch (err) {
+    console.error("Error:", err);
+    error(`Error deleting memory: ${err.message}`);
   }
 }
 
@@ -320,9 +332,9 @@ async function generateMemoryPrompt() {
 
     const data = await response.json();
     generatedPrompt.value = data.response || "";
-  } catch (error) {
-    console.error("Error:", error);
-    alert(`Error generating prompt: ${error.message}`);
+  } catch (err) {
+    console.error("Error:", err);
+    error(`Error generating prompt: ${err.message}`);
   } finally {
     isLoading.value = false;
   }
@@ -331,18 +343,13 @@ async function generateMemoryPrompt() {
 
 <template>
   <div class="app">
-    <div class="model-selector">
-      <label for="model-select">AI Model:</label>
-      <select v-model="selectedModel" id="model-select">
-        <option
-          v-for="model in availableModels"
-          :key="model.value"
-          :value="model.value"
-        >
-          {{ model.label }}
-        </option>
-      </select>
-    </div>
+    <AppHeader
+      :memory-count="memoryCount"
+      :selected-model="selectedModel"
+      :available-models="availableModels"
+      @update:selected-model="selectedModel = $event"
+    />
+    <ToastContainer />
     <div class="main-container">
       <!-- Memory Builder (Main) -->
       <MemoryBuilder
@@ -385,54 +392,21 @@ async function generateMemoryPrompt() {
 .app {
   min-height: 100vh;
   background: #f5f5f7;
-  padding: 24px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-}
-
-.model-selector {
-  max-width: 1400px;
-  margin: 0 auto 24px;
   display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.model-selector label {
-  color: #555;
-  font-weight: 500;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.model-selector select {
-  padding: 8px 12px;
-  border: 1px solid #d5d5d7;
-  border-radius: 8px;
-  background: white;
-  color: #333;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.model-selector select:hover {
-  border-color: #999;
-}
-
-.model-selector select:focus {
-  outline: none;
-  border-color: #555;
-  box-shadow: 0 0 0 2px rgba(85, 85, 85, 0.1);
+  flex-direction: column;
 }
 
 .main-container {
-  max-width: 1400px;
-  margin: 0 auto;
+  flex: 1;
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 @media (max-width: 1024px) {
